@@ -78,27 +78,90 @@ int16_t parseMAX7311SetDDRw(char *cmd, char *output, uint16_t len) {
 }
 
 int16_t parseMAX7311GetDDRw(char *cmd, char *output, uint16_t len) {
-
+  uint8_t adr;
+  uint16_t data;
+  uint8_t ret;
+  sscanf_P(cmd, PSTR("%hhu"), &adr);
+  if (adr > 0x6F)
+    return ECMD_ERR_PARSE_ERROR;
+  ret = i2c.MAX7311GetDDRw(adr, &data);
+  if (ret == 0) {
+    return ECMD_FINAL(snprintf_P(output, len, PSTR("%X"), data));
+  } else {
+    return ECMD_FINAL(snprintf_P(output, len, PSTR("no sensor detected")));
+  }
 }
 
 int16_t parseMAX7311SetOUTw(char *cmd, char *output, uint16_t len) {
-
+  uint8_t adr;
+  uint16_t data;
+  uint8_t ret;
+  sscanf_P(cmd, PSTR("%hhu %hX"), &adr, &data);
+  if (adr > 0x6F)
+    return ECMD_ERR_PARSE_ERROR;
+  ret = i2c.MAX7311SetOUTw(adr, data);
+  if (ret == 0) {
+    return ECMD_FINAL_OK;
+  } else {
+    return ECMD_FINAL(snprintf_P(output, len, PSTR("no sensor detected")));
+  }
 }
 
 int16_t parseMAX7311Set(char *cmd, char *output, uint16_t len) {
-
+  uint8_t adr;
+  uint8_t bit;
+  uint8_t state;
+  uint8_t ret;
+  sscanf_P(cmd, PSTR("%hhu %hhu %hhu"), &adr, &bit, &state);
+  if (adr > 0x6F || bit > 15)
+    return ECMD_ERR_PARSE_ERROR;
+  ret = i2c.MAX7311Set(adr, bit, state);
+  if (ret == 0) {
+    return ECMD_FINAL_OK;
+  } else {
+    return ECMD_FINAL(snprintf_P(output, len, PSTR("no sensor detected")));
+  }
 }
 
 int16_t parseMAX7311Pulse(char *cmd, char *output, uint16_t len) {
-
+  uint8_t adr;
+  uint8_t bit;
+  uint16_t time;
+  uint8_t ret;
+  sscanf_P(cmd, PSTR("%hhu %hhu %hu"), &adr, &bit, &time);
+  if (adr > 0x6F || bit > 15)
+    return ECMD_ERR_PARSE_ERROR;
+  if (time > 1000)
+    time = 1000;
+  ret = i2c.MAX7311Pulse(adr, bit, time);
+  if (ret == 0) {
+    return ECMD_FINAL_OK;
+  } else {
+    return ECMD_FINAL(snprintf_P(output, len, PSTR("no sensor detected")));
+  }
 }
 
 int16_t parsePCF8574xSet(char *cmd, char *output, uint16_t len) {
-
+  uint8_t adr, chip, value;
+  sscanf_P(cmd, PSTR("%hhu %hhu %hhx"), &adr, &chip, &value);
+  if (chip == 0) {
+    adr += I2C_SLA_PCF8574;
+  } else {
+    adr += I2C_SLA_PCF8574A;
+  }
+  i2c. PCF8574xSet(adr, value);
+  return ECMD_FINAL(snprintf_P(output, len, PSTR("0x%X"), value));
 }
 
 int16_t parsePCF8574xGet(char *cmd, char *output, uint16_t len) {
-
+  uint8_t adr, chip;
+  sscanf_P(cmd, PSTR("%hhu %hhu"), &adr, &chip);
+  if (chip == 0) {
+    adr += I2C_SLA_PCF8574;
+  } else {
+    adr += I2C_SLA_PCF8574A;
+  }
+  return ECMD_FINAL(snprintf_P(output, len, PSTR("0x%X"), i2c.PCF8574xGet(adr)));
 }
 
 int16_t parseRec868Start(char *cmd, char *output, uint16_t len) {
@@ -118,15 +181,38 @@ int16_t parseI2cDetect(char *cmd, char *output, uint16_t len) {
 }
 
 int16_t parseDS1631Start(char *cmd, char *output, uint16_t len) {
-
+  uint8_t adr;
+  sscanf_P(cmd, PSTR("%hhu"), &adr);
+  if (adr > 7)
+    return ECMD_ERR_PARSE_ERROR;
+  uint16_t ret = i2c.DS1631Start(I2C_SLA_DS1631 + adr);
+  if (ret == 0xffff)
+    return ECMD_FINAL(snprintf_P(output, len, PSTR("no sensor detected")));
+  return ECMD_FINAL_OK;
 }
 
 int16_t parseDS1631Stop(char *cmd, char *output, uint16_t len) {
-
+  uint8_t adr;
+  sscanf_P(cmd, PSTR("%hhu"), &adr);
+  if (adr > 7)
+    return ECMD_ERR_PARSE_ERROR;
+  uint16_t ret = i2c.DS1631Stop(I2C_SLA_DS1631 + adr);
+  if (ret == 0xffff)
+    return ECMD_FINAL(snprintf_P(output, len, PSTR("no sensor detected")));
+  return ECMD_FINAL_OK;
 }
 
 int16_t parseDS1631Temp(char *cmd, char *output, uint16_t len) {
-
+  uint8_t adr;
+  int16_t temp;
+  int16_t stemp;
+  sscanf_P(cmd, PSTR("%hhu"), &adr);
+  if (adr > 7)
+    return ECMD_ERR_PARSE_ERROR;
+  uint16_t ret = i2c.DS1631Temp(I2C_SLA_DS1631 + adr, &temp, &stemp);
+  if (ret == 0xffff)
+    return ECMD_FINAL(snprintf_P(output, len, PSTR("no sensor detected")));
+  return ECMD_FINAL(snprintf_P(output, len, PSTR("%d.%d"), temp, stemp));
 }
 
 int16_t parseFS20Send(char *cmd, char *output, uint16_t len) {

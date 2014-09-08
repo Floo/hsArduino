@@ -33,15 +33,47 @@ char cmd[BUFLEN];
 char output[BUFLEN];
 uint16_t len;
 uint16_t volatile udp_count = 0;
+bool tastenTimerLaeuft = false;
+unsigned long startTastenTime;
 extern volatile struct rec868_global_t rec868_global;
+
+void udpSend(char *buf, uint16_t len) {
+  udp.beginPacket(remoteUdpIP, remoteUdpPort);
+  udp.write(buf, len);
+  udp.endPacket();
+  free(buf);
+}
+
+void tastIntFall() {
+  startTastenTime = millis();
+  tastenTimerLaeuft = true;
+}
+
+void tastIntRise() {
+  if (tastenTimerLaeuft) {
+    tastenTimerLaeuft = false;
+    int len = 18;
+    char *buf = (char*)malloc(len);
+    snprintf(buf, len, "%05 TASTER KURZ\n", udp_count++);
+    udpSend(buf, len);
+  }
+}
 
 void setup() {
   // put your setup code here, to run once:
   // start the Ethernet connection and the server:
   rec868_init();
+  
+  attachInterrupt(4, tastIntFall, FALLING);
+  attachInterrupt(4, tastIntRise, RISING);
+  
   Ethernet.begin(mac, ip);
   server.begin();
   udp.begin(localUdpPort);
+  int len = 14;
+  char *buf = (char*)malloc(len);
+  snprintf(buf, len, "%05 E6 UP \n", udp_count++);
+  udpSend(buf, len);
 }
 
 void loop() {
@@ -56,7 +88,7 @@ void loop() {
         cmd[pos++] = c;
         if (c == '\n') {
           cmd[pos++] = '\0'; //Stringende anhängen
-          uint16_t len = parser(cmd, output, BUFLEN);
+          uint16_t len = parser(cmd, output, BUFLEN - 1);
           output[len + 1] = '\n';
           client.println(output);
           break;
@@ -66,5 +98,17 @@ void loop() {
     delay(1);
     client.stop();
   }
+  
   rec868_process();
+  
+  if (tastenTimerLaeuft) {
+    unsigned long currentTastenTime = millis();
+    if (currentTastenTime - startTastenTime > 3000) {
+      tastenTimerLauft = false;
+      int len = 18;
+      char *buf = (char*)malloc(len);
+      snprintf(buf, len, "%05 TASTER LANG\n", udp_count++);
+      udpSend(buf, len);
+    }
+  }
 }

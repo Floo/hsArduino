@@ -13,6 +13,8 @@
 #define ECMD_ERR_READ_ERROR	-2	/* reading data failed */
 #define ECMD_ERR_WRITE_ERROR	-3	/* writing data failed */
 
+#define I2C_SLA_PCF8574 0x20
+#define I2C_SLA_PCF8574A 0x38
 
 /* struct for storing commands */
 struct ecmd_command_t {
