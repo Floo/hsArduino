@@ -20,7 +20,7 @@ uint16_t I2C::DS1631Stop(uint8_t addr) {
   Wire.endTransmission();
 }
 
-uint16_t I2C::DS1631Temp(uint8_t addr, uint16_t *temp, uint16_t *stemp) {
+uint16_t I2C::DS1631Temp(uint8_t addr, int16_t *temp, int16_t *stemp) {
   DS1631ReadTemp(addr);
   if (MSByte & 0x80) {
     *temp = (128 - (MSByte & 0x7F));
@@ -43,6 +43,8 @@ uint16_t I2C::DS1631ReadTemp(uint8_t addr) {
   Wire.endTransmission();
 }
 
+#ifdef PCF8574_SUPPORT
+
 uint16_t I2C::PCF8574xSet(uint8_t addr, uint8_t data) {
   Wire.beginTransmission(addr);
   Wire.write(data);
@@ -56,6 +58,10 @@ uint16_t I2C::PCF8574xGet(uint8_t addr, uint8_t *data) {
   *data = Wire.read();
   Wire.endTransmission();
 }
+
+#endif
+
+#ifdef MAX7311_SUPPORT
 
 uint16_t I2C::MAX7311SetDDRw(uint8_t addr, uint16_t data) {
   MAX7311WriteReg(addr, MAX7311_DDR_L, data);
@@ -107,5 +113,26 @@ uint16_t I2C::MAX7311WriteReg(uint8_t addr, uint8_t reg, uint16_t data) {
   Wire.write(data & 0xFF);
   Wire.write((data >> 8) & 0xFF);
   Wire.endTransmission();
+}
+
+#endif
+
+uint8_t I2C::detectI2C(char *output, uint16_t len) {
+  uint8_t ret;
+  uint8_t deviceCount = 0;
+  for (uint8_t addr = 1; addr < 127; addr++) {
+    Wire.beginTransmission(addr);
+    ret = Wire.endTransmission();
+    if (ret == 0) {
+      deviceCount++;
+      snprintf(output, len, "%i ", addr);
+      output += strlen(output);
+      len -= strlen(output);
+    }
+  }
+  if (deviceCount == 0) {
+    snprintf_P(output, len, PSTR("no device detected"));
+  }
+  return deviceCount;
 }
 

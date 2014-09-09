@@ -2,34 +2,61 @@
 #include "parser.h"
 #include "i2c.h"
 #include "rec868.h"
+
+#ifdef FS20_SUPPORT
 #include "fs20.h"
+#endif
+
 #include <stdio.h>
 
+#ifndef PC6
+#define PC6 6
+#endif
+#ifndef PC7
+#define PC7 7
+#endif
 
 const struct ecmd_command_t PROGMEM ecmd_cmds[] = {
+  
+#ifdef MAX7311_SUPPORT
   { "max7311 setDDRw", parseMAX7311SetDDRw },
   { "max7311 getDDRw", parseMAX7311GetDDRw },
   { "max7311 setOUTw", parseMAX7311SetOUTw },
   { "max7311 set", parseMAX7311Set },
   { "max7311 pulse", parseMAX7311Pulse },
+#endif
+
+#ifdef PCF8574_SUPPORT
   { "pcf8574x set", parsePCF8574xSet },
   { "pcf8574x get", parsePCF8574xGet },
+#endif
+
+#ifdef REC868_SUPPORT
   { "rec868 start", parseRec868Start },
+#endif
+
   { "reset", parseReset },
   { "i2c detect", parseI2cDetect },
   { "ds1631 start", parseDS1631Start },
   { "ds1631 stop", parseDS1631Stop },
   { "ds1631 temp", parseDS1631Temp },
+  
+#ifdef FS20_SUPPORT
   { "fs20 send", parseFS20Send },
+#endif
+
   { "pin set", parsePinSet },
+  { "help", parseHelp },
   { NULL, NULL }
 };
 
 I2C i2c;
 
 uint16_t parser ( char *cmd, char *output, int16_t len ) {
-  int ret = -1;
+  int ret = ECMD_ERR_PARSE_ERROR;
+  int retSum = 0;
   char *text = NULL;
+  bool parseAgain = true;
   //int16_t (*func)(char*, char*, uint16_t) = NULL;
   func_t func = NULL;
   uint8_t pos = 0;
@@ -46,21 +73,21 @@ uint16_t parser ( char *cmd, char *output, int16_t len ) {
     }
     pos++;
   }
-  if (func != NULL)
-    ret = func(cmd, output, len);
-
-  if (output != NULL) {
-    if (ret == -1) {
-      memcpy_P(output, PSTR("parse error"), 11);
-      ret = 11;
-    } else if (ret == 0) {
-      output[0] = 'O';
-      output[1] = 'K';
-      ret = 2;
-    }
+  if (func != NULL) {
+      ret = func(cmd, output, len);
   }
+  if (ret == ECMD_ERR_PARSE_ERROR) {
+    memcpy_P(output, PSTR("parse error"), 11);
+    ret = 11;
+  } else if (ret == ECMD_FINAL_OK) {
+    output[0] = 'O';
+    output[1] = 'K';
+    ret = 2;
+  } 
+  return ret;
 }
 
+#ifdef MAX7311_SUPPORT
 
 int16_t parseMAX7311SetDDRw(char *cmd, char *output, uint16_t len) {
   uint8_t adr;
@@ -141,6 +168,9 @@ int16_t parseMAX7311Pulse(char *cmd, char *output, uint16_t len) {
   }
 }
 
+#endif
+
+#ifdef PCF8574_SUPPORT
 int16_t parsePCF8574xSet(char *cmd, char *output, uint16_t len) {
   uint8_t adr, chip, value;
   sscanf_P(cmd, PSTR("%hhu %hhu %hhx"), &adr, &chip, &value);
@@ -154,16 +184,19 @@ int16_t parsePCF8574xSet(char *cmd, char *output, uint16_t len) {
 }
 
 int16_t parsePCF8574xGet(char *cmd, char *output, uint16_t len) {
-  uint8_t adr, chip;
+  uint8_t adr, chip, data;
   sscanf_P(cmd, PSTR("%hhu %hhu"), &adr, &chip);
   if (chip == 0) {
     adr += I2C_SLA_PCF8574;
   } else {
     adr += I2C_SLA_PCF8574A;
   }
-  return ECMD_FINAL(snprintf_P(output, len, PSTR("0x%X"), i2c.PCF8574xGet(adr)));
+  i2c.PCF8574xGet(adr, &data);
+  return ECMD_FINAL(snprintf_P(output, len, PSTR("0x%X"), data));
 }
+#endif
 
+#ifdef REC868_SUPPORT
 int16_t parseRec868Start(char *cmd, char *output, uint16_t len) {
   rec868_global.stat.wett = TRUE;
   rec868_global.stat.hell = TRUE;
@@ -171,14 +204,7 @@ int16_t parseRec868Start(char *cmd, char *output, uint16_t len) {
   rec868_start();
   return ECMD_FINAL_OK;
 }
-
-int16_t parseReset(char *cmd, char *output, uint16_t len) {
-
-}
-
-int16_t parseI2cDetect(char *cmd, char *output, uint16_t len) {
-
-}
+#endif
 
 int16_t parseDS1631Start(char *cmd, char *output, uint16_t len) {
   uint8_t adr;
@@ -215,6 +241,8 @@ int16_t parseDS1631Temp(char *cmd, char *output, uint16_t len) {
   return ECMD_FINAL(snprintf_P(output, len, PSTR("%d.%d"), temp, stemp));
 }
 
+#ifdef FS20_SUPPORT
+
 int16_t parseFS20Send(char *cmd, char *output, uint16_t len) {
   uint16_t hc, addr, c, ew;
 
@@ -235,6 +263,52 @@ int16_t parseFS20Send(char *cmd, char *output, uint16_t len) {
   return ECMD_ERR_PARSE_ERROR;
 }
 
-int16_t parsePinSet(char *cmd, char *output, uint16_t len) {
+#endif
 
+int16_t parseReset(char *cmd, char *output, uint16_t len) {
+  return ECMD_FINAL_OK;
+  WDTCSR=(1<<WDE) | (1<<WDCE) ;
+  WDTCSR= (1<<WDE);
+  for(;;) {}
+}
+
+int16_t parseI2cDetect(char *cmd, char *output, uint16_t len) {
+  i2c.detectI2C(output, len);
+  return ECMD_FINAL(strlen(output));
+}
+
+int16_t parsePinSet(char *cmd, char *output, uint16_t len) {
+  char *pnt;
+  uint8_t pin;
+  if ((pnt = strstr_P(cmd, PSTR("LED_RED"))) != NULL) {
+    pin = PC6;
+    pnt += 7;
+  } else if ((pnt = strstr_P(cmd, PSTR("LED_GREEN"))) != NULL) {
+    pin = PC7;
+    pnt += 9;
+  } else {
+    return ECMD_ERR_PARSE_ERROR;
+  }
+  if (atoi(pnt) == 1) {
+    PORTC |= (1 << pin); //Set
+  } else {
+    PORTC &= ~(1 << pin); //Clear
+  }
+  return ECMD_FINAL_OK;
+}
+
+int16_t parseHelp(char *cmd, char *output, uint16_t len) {
+  uint8_t pos = 0;
+  char * text = NULL;
+  while (1) {
+    text = (char *)pgm_read_word(&ecmd_cmds[pos].name);
+    if (text == NULL) {
+      break;
+    } else {
+      strcat_P(output, text);
+      strcat(output, "\n");
+    }
+    pos++;
+  }
+  return ECMD_FINAL(strlen(output));
 }

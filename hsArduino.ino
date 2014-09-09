@@ -2,17 +2,18 @@
 //#include <Dns.h>
 #include <SPI.h>
 #include <Ethernet.h>
-#include <EthernetClient.h>
+//#include <EthernetClient.h>
 #include <EthernetServer.h>
 #include <EthernetUdp.h>
 //#include <Twitter.h>
 #include <util.h>
 
+#include "hsArduino.h"
 #include "parser.h"
 #include "rec868.h"
 #include <Wire.h>
 
-#define BUFLEN 64
+#define BUFLEN 256
 
 // Enter a MAC address and IP address for your controller below.
 // The IP address will be dependent on your local network:
@@ -22,6 +23,8 @@ byte mac[] = {
 IPAddress ip(192, 168, 178, 50);
 
 uint16_t localUdpPort(8888);
+IPAddress remoteUdpIP(192, 168, 178, 10);
+uint16_t remoteUdpPort(1023);
 
 // Initialize the Ethernet server library
 // with the IP address and port you want to use
@@ -36,13 +39,6 @@ uint16_t volatile udp_count = 0;
 bool tastenTimerLaeuft = false;
 unsigned long startTastenTime;
 extern volatile struct rec868_global_t rec868_global;
-
-void udpSend(char *buf, uint16_t len) {
-  udp.beginPacket(remoteUdpIP, remoteUdpPort);
-  udp.write(buf, len);
-  udp.endPacket();
-  free(buf);
-}
 
 void tastIntFall() {
   startTastenTime = millis();
@@ -62,7 +58,9 @@ void tastIntRise() {
 void setup() {
   // put your setup code here, to run once:
   // start the Ethernet connection and the server:
+#ifdef REC868_SUPPORT
   rec868_init();
+#endif
   
   attachInterrupt(4, tastIntFall, FALLING);
   attachInterrupt(4, tastIntRise, RISING);
@@ -89,7 +87,7 @@ void loop() {
         if (c == '\n') {
           cmd[pos++] = '\0'; //Stringende anhängen
           uint16_t len = parser(cmd, output, BUFLEN - 1);
-          output[len + 1] = '\n';
+          output[len + 1] = '\0';
           client.println(output);
           break;
         }
@@ -99,12 +97,14 @@ void loop() {
     client.stop();
   }
   
+#ifdef REC868_SUPPORT  
   rec868_process();
-  
+#endif
+
   if (tastenTimerLaeuft) {
     unsigned long currentTastenTime = millis();
     if (currentTastenTime - startTastenTime > 3000) {
-      tastenTimerLauft = false;
+      tastenTimerLaeuft = false;
       int len = 18;
       char *buf = (char*)malloc(len);
       snprintf(buf, len, "%05 TASTER LANG\n", udp_count++);

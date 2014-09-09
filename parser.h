@@ -4,6 +4,8 @@
 
 #include <avr/pgmspace.h>
 
+#include "hsArduino.h"
+
 /* function successful, no output; caller may print "OK" */
 #define ECMD_FINAL_OK		0
 /* function successful, output of size len in output buffer */
@@ -15,6 +17,7 @@
 
 #define I2C_SLA_PCF8574 0x20
 #define I2C_SLA_PCF8574A 0x38
+#define I2C_SLA_DS1631 0x48
 
 /* struct for storing commands */
 struct ecmd_command_t {
@@ -25,20 +28,35 @@ struct ecmd_command_t {
 typedef int16_t (*func_t)(char*, char*, uint16_t);
 
 uint16_t parser ( char *cmd, char *output, int16_t len );
+
+#ifdef MAX7311_SUPPORT
 int16_t parseMAX7311SetDDRw(char *cmd, char *output, uint16_t len);
 int16_t parseMAX7311GetDDRw(char *cmd, char *output, uint16_t len);
 int16_t parseMAX7311SetOUTw(char *cmd, char *output, uint16_t len);
 int16_t parseMAX7311Set(char *cmd, char *output, uint16_t len);
 int16_t parseMAX7311Pulse(char *cmd, char *output, uint16_t len);
+#endif
+
+#ifdef PCF8574_SUPPORT
 int16_t parsePCF8574xSet(char *cmd, char *output, uint16_t len);
 int16_t parsePCF8574xGet(char *cmd, char *output, uint16_t len);
+#endif
+
+#ifdef REC868_SUPPORT
 int16_t parseRec868Start(char *cmd, char *output, uint16_t len);
+#endif
+
 int16_t parseReset(char *cmd, char *output, uint16_t len);
 int16_t parseI2cDetect(char *cmd, char *output, uint16_t len);
 int16_t parseDS1631Start(char *cmd, char *output, uint16_t len);
 int16_t parseDS1631Stop(char *cmd, char *output, uint16_t len);
 int16_t parseDS1631Temp(char *cmd, char *output, uint16_t len);
+
+#ifdef FS20_SUPPORT
 int16_t parseFS20Send(char *cmd, char *output, uint16_t len);
+#endif
+
 int16_t parsePinSet(char *cmd, char *output, uint16_t len);
+int16_t parseHelp(char *cmd, char *output, uint16_t len);
 
 #endif

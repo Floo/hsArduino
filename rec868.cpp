@@ -25,10 +25,13 @@
 
 //#define DEBUG_PB1_ENABLE
 
-IPAddress remoteUdpIP(192, 168, 178, 10);
-uint16_t remoteUdpPort(1023);
+extern IPAddress remoteUdpIP;
+extern uint16_t remoteUdpPort;
 
+#ifdef REC868_SUPPORT
 volatile struct rec868_global_t rec868_global;
+#endif
+
 //uip_ipaddr_t udp_ip;
 extern uint16_t udp_count;
 extern EthernetUDP udp;
@@ -41,6 +44,8 @@ void udpSend(char *buf, uint16_t len) {
   udp.endPacket();
   free(buf);
 }
+
+#ifdef REC868_SUPPORT
 
 void out_FS20(void)
 {
@@ -525,5 +530,5 @@ ISR(ANALOG_COMP_vect)
   ic_error();
 }
 
-
+#endif
 

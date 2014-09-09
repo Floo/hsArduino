@@ -23,14 +23,17 @@
 #ifndef _REC868_H
 #define _REC868_H
 
+#include "hsArduino.h"
 
-
+#ifdef REC868_SUPPORT
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <inttypes.h>
 #include <util/parity.h>
 #include <stdlib.h>
 #include <stdio.h>
+#endif
+
 #include <EthernetUdp.h>
 
 #ifndef TRUE
@@ -64,6 +67,8 @@
 //#define T4 125 // 1000 µs
 #define T4 86 // 1100 µs
 
+#ifdef REC868_SUPPORT
+
 struct rec868_global_t
 {
   uint8_t kommando;
@@ -96,7 +101,6 @@ struct rec868_global_t
 };
 
 extern volatile struct rec868_global_t rec868_global;
-//extern uip_ipaddr_t udp_ip;
 
 void rec868_process(void);
 void rec868_init(void);
@@ -105,9 +109,11 @@ void rec868_start(void);
 void out_FS20(void);
 void out_Wett(void);
 void out_Hell(void);
-void udpSend(char*, uint16_t);
 void ic_error(void);
 void ic_up1(void);
 void ic_up2(void);
+#endif
+
+void udpSend(char*, uint16_t);
 
 #endif //_REC868_H
